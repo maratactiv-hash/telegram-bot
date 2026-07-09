@@ -11,15 +11,22 @@ import json
 import gspread
 from google.oauth2 import service_account
 
+# Список необходимых областей (Scopes)
+SCOPES = [
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/drive'
+]
 # НАСТРОЙКИ
 TOKEN = '8822079594:AAGvB3S2Gnqvt7dg-a-GKZ9BRnA5zZBxeg0'
 SPREADSHEET_ID = '107883788446408333252' #'1PXu_0hC-dHC_64KZYI0HdN7x-NxsyoUct8muHGE8f30'
 #gc = gspread.service_account(filename='service_account.json')
 #sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 creds_dict = json.loads(os.environ['GOOGLE_KEY_JSON'])
-creds = service_account.Credentials.from_service_account_info(creds_dict)
+creds = service_account.Credentials.from_service_account_info(
+    creds_dict, scopes=SCOPES
+)
 gc = gspread.authorize(creds)
-sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
+sheet = gc.open_by_key(os.environ['SPREADSHEET_ID']).sheet1
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
