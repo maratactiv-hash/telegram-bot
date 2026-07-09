@@ -10,7 +10,23 @@ import os
 import json
 import gspread
 from google.oauth2 import service_account
+from aiohttp import web
 
+# Добавьте эту функцию в ваш main.py
+async def handle(request):
+    return web.Response(text="Bot is running")
+
+# И запустите веб-сервер вместе с ботом в функции main()
+async def main():
+    app = web.Application()
+    app.router.add_get('/', handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', int(os.environ.get('PORT', 8080)))
+    await site.start()
+    
+    # И тут же запускаем бота
+    await dp.start_polling(bot)
 # Список необходимых областей (Scopes)
 SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
