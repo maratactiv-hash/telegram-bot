@@ -13,8 +13,9 @@ from google.oauth2.service_account import Credentials
 from aiohttp import web
 
 # --- НАСТРОЙКИ ---
-TOKEN = os.environ['8822079594:AAGvB3S2Gnqvt7dg-a-GKZ9BRnA5zZBxeg0']
+№TOKEN = os.environ['8822079594:AAGvB3S2Gnqvt7dg-a-GKZ9BRnA5zZBxeg0']
 #SPREADSHEET_ID = os.environ['107883788446408333252']
+TOKEN = os.environ['TOKEN']
 SPREADSHEET_ID = os.environ['SPREADSHEET_ID']
 
 # Авторизация Google
