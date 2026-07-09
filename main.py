@@ -6,12 +6,19 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback
+import os
+import json
 import gspread
+from google.oauth2 import service_account
 
 # НАСТРОЙКИ
 TOKEN = '8822079594:AAGvB3S2Gnqvt7dg-a-GKZ9BRnA5zZBxeg0'
-SPREADSHEET_ID = '1PXu_0hC-dHC_64KZYI0HdN7x-NxsyoUct8muHGE8f30'
-gc = gspread.service_account(filename='service_account.json')
+SPREADSHEET_ID = '107883788446408333252' #'1PXu_0hC-dHC_64KZYI0HdN7x-NxsyoUct8muHGE8f30'
+#gc = gspread.service_account(filename='service_account.json')
+#sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
+creds_dict = json.loads(os.environ['GOOGLE_KEY_JSON'])
+creds = service_account.Credentials.from_service_account_info(creds_dict)
+gc = gspread.authorize(creds)
 sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 
 bot = Bot(token=TOKEN)
