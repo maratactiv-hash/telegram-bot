@@ -1,57 +1,41 @@
+import os
+import json
 import asyncio
-from datetime import datetime, timedelta
+import gspread
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback
-import os
-import json
-import gspread
-from google.oauth2 import service_account
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from google.oauth2.service_account import Credentials
 from aiohttp import web
 
-# Добавьте эту функцию в ваш main.py
-async def handle(request):
-    return web.Response(text="Bot is running")
+# --- НАСТРОЙКИ ---
+TOKEN = os.environ['8822079594:AAGvB3S2Gnqvt7dg-a-GKZ9BRnA5zZBxeg0']
+SPREADSHEET_ID = os.environ['107883788446408333252' #'1PXu_0hC-dHC_64KZYI0HdN7x-NxsyoUct8muHGE8f30']
 
-# И запустите веб-сервер вместе с ботом в функции main()
-async def main():
-    app = web.Application()
-    app.router.add_get('/', handle)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', int(os.environ.get('PORT', 8080)))
-    await site.start()
-    
-    # И тут же запускаем бота
-    await dp.start_polling(bot)
-# Список необходимых областей (Scopes)
-SCOPES = [
+# Авторизация Google
+scopes = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive'
 ]
-# НАСТРОЙКИ
-TOKEN = '8822079594:AAGvB3S2Gnqvt7dg-a-GKZ9BRnA5zZBxeg0'
-SPREADSHEET_ID = '107883788446408333252' #'1PXu_0hC-dHC_64KZYI0HdN7x-NxsyoUct8muHGE8f30'
-#gc = gspread.service_account(filename='service_account.json')
-#sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 creds_dict = json.loads(os.environ['GOOGLE_KEY_JSON'])
-creds = service_account.Credentials.from_service_account_info(
-    creds_dict, scopes=SCOPES
-)
+creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 gc = gspread.authorize(creds)
-sheet = gc.open_by_key(os.environ['SPREADSHEET_ID']).sheet1
+sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
+# --- СОСТОЯНИЯ ---
 class ApplicationForm(StatesGroup):
     company = State(); op_type = State(); city = State()
     address = State(); date = State(); phone = State()
     vehicle = State(); note = State()
 
+# --- ХЕНДЛЕРЫ ---
 @dp.message(Command("start"))
 async def start(msg: Message):
     kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Начать заявку", callback_data="start_form")]])
@@ -88,10 +72,7 @@ async def p_addr(msg: Message, state: FSMContext):
 async def p_date(cb: CallbackQuery, callback_data: dict, state: FSMContext):
     selected, date = await SimpleCalendar().process_selection(cb, callback_data)
     if selected:
-        if date.date() < datetime.now().date() + timedelta(days=1):
-            await cb.message.answer("Ошибка! Минимум завтрашний день.")
-        else:
-            await state.update_data(date=date.strftime("%d.%m.%Y")); await cb.message.answer("6. Номер телефона:"); await state.set_state(ApplicationForm.phone)
+        await state.update_data(date=date.strftime("%d.%m.%Y")); await cb.message.answer("6. Номер телефона:"); await state.set_state(ApplicationForm.phone)
 
 @dp.message(ApplicationForm.phone)
 async def p_ph(msg: Message, state: FSMContext):
@@ -103,7 +84,7 @@ async def p_vh(msg: Message, state: FSMContext):
 
 @dp.message(ApplicationForm.note)
 async def p_note(msg: Message, state: FSMContext):
-    data = await state.update_data(note=msg.text)
+    await state.update_data(note=msg.text)
     kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Отправить заявку", callback_data="send_req")]])
     await msg.answer("Все верно?", reply_markup=kb)
 
@@ -113,5 +94,21 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
     sheet.append_row([data['company'], data['op_type'], data['city'], data['address'], data['date'], data['phone'], data['vehicle'], data['note']])
     await cb.message.answer("✅ Заявка отправлена!"); await state.clear()
 
-async def main(): await dp.start_polling(bot)
-if __name__ == '__main__': asyncio.run(main())
+# --- ЗАПУСК ---
+async def main():
+    app = web.Application()
+    webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    webhook_requests_handler.register(app, path="/webhook")
+    setup_application(app, dp, bot=bot)
+    
+    port = int(os.environ.get("PORT", 8080))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    
+    # Запуск поллинга в фоне
+    await dp.start_polling(bot)
+
+if __name__ == '__main__':
+    asyncio.run(main())
