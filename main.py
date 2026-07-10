@@ -71,6 +71,7 @@ async def p_city(msg: Message, state: FSMContext):
 @dp.message(ApplicationForm.address)
 async def p_addr(msg: Message, state: FSMContext):
     await state.update_data(address=msg.text)
+    # Запускаем календарь БЕЗ ограничений (min_date=None)
     await msg.answer("5. Выберите дату:", reply_markup=await SimpleCalendar().start_calendar())
     await state.set_state(ApplicationForm.date)
 
