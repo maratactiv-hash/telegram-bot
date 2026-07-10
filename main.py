@@ -12,6 +12,7 @@ from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from google.oauth2.service_account import Credentials
 from aiohttp import web
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 TOKEN = os.environ['TOKEN']
 SPREADSHEET_ID = os.environ['SPREADSHEET_ID']
@@ -23,31 +24,33 @@ gc = gspread.authorize(creds)
 sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 
 bot = Bot(token=TOKEN)
+WEBHOOK_URL = "https://ВАШЕ-ИМЯ-НА-RENDER.onrender.com/webhook"
+bot.set_webhook(url=WEBHOOK_URL)
 dp = Dispatcher()
 
 # Функция для показа стартовой кнопки
 async def main():
     app = web.Application()
     
-    # Регистрация бота
+    # Регистрация бота как вебхука
     webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
     webhook_requests_handler.register(app, path="/webhook")
     setup_application(app, dp, bot=bot)
     
-    # ПОЛУЧАЕМ ПОРТ ОТ RENDER
-    port = int(os.environ.get("PORT", 10000)) # Используем 10000 как стандарт для Render
+    # Бот будет слушать порт, который дает Render
+    port = int(os.environ.get("PORT", 10000))
     
+    # Запускаем веб-сервер
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', port)
-    
-    print(f"Сервер запущен на порту {port}")
     await site.start()
     
-    # Запуск поллинга
-    await dp.start_polling(bot)
+    # Убираем dp.start_polling(bot) и вместо этого просто ждем
+    await asyncio.Event().wait()
 
-# ... (оставляем ваши хендлеры ввода данных до отправки) ...
+if __name__ == '__main__':
+    asyncio.run(main())
 
 @dp.callback_query(F.data == "send_req")
 async def send_data(cb: CallbackQuery, state: FSMContext):
