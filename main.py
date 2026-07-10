@@ -26,22 +26,26 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 # Функция для показа стартовой кнопки
-async def show_start_button(message: Message):
-    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Начать заявку", callback_data="start_form")]])
-    await message.answer("Нажмите кнопку для оформления заявки:", reply_markup=kb)
-
-class ApplicationForm(StatesGroup):
-    company = State(); op_type = State(); city = State()
-    address = State(); date = State(); phone = State()
-    vehicle = State(); note = State()
-
-@dp.message(Command("start"))
-async def start(msg: Message):
-    await show_start_button(msg)
-
-@dp.callback_query(F.data == "start_form")
-async def start_form(cb: CallbackQuery, state: FSMContext):
-    await cb.message.answer("1. Наименование компании:"); await state.set_state(ApplicationForm.company)
+async def main():
+    app = web.Application()
+    
+    # Регистрация бота
+    webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    webhook_requests_handler.register(app, path="/webhook")
+    setup_application(app, dp, bot=bot)
+    
+    # ПОЛУЧАЕМ ПОРТ ОТ RENDER
+    port = int(os.environ.get("PORT", 10000)) # Используем 10000 как стандарт для Render
+    
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    
+    print(f"Сервер запущен на порту {port}")
+    await site.start()
+    
+    # Запуск поллинга
+    await dp.start_polling(bot)
 
 # ... (оставляем ваши хендлеры ввода данных до отправки) ...
 
