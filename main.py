@@ -42,10 +42,11 @@ class ApplicationForm(StatesGroup):
 # --- ХЕНДЛЕРЫ ---
 @dp.message(Command("start"))
 async def start(msg: Message):
-    await msg.answer("Привет! Нажми на кнопку ниже, чтобы начать:", reply_markup=start_kb)
+    await msg.answer("Привет! Нажми кнопку ниже, чтобы начать оформление:", reply_markup=start_kb)
 
 @dp.message(F.text == "Начать заявку")
 async def start_form(msg: Message, state: FSMContext):
+    await state.clear() # Полный сброс предыдущей заявки
     await msg.answer("1. Наименование компании:", reply_markup=ReplyKeyboardRemove())
     await state.set_state(ApplicationForm.company)
 
@@ -99,10 +100,10 @@ async def p_note(msg: Message, state: FSMContext):
 @dp.callback_query(F.data == "send_req")
 async def send_data(cb: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    # Только дата: день.месяц.год
-    today = datetime.now().strftime("%d.%m.%Y") 
-    sheet.append_row([today, data['company'], data['op_type'], data['city'], data['address'], data['date'], data['phone'], data['vehicle'], data['note']])
+    today = datetime.now().strftime("%d.%m.%Y")
+    sheet.append_row([today, data['company'], data['op_type'], data['city'], data['address'], data['phone'], data['vehicle'], data['note']])
     
+    # После успеха возвращаем клавиатуру с кнопкой
     await cb.message.answer("✅ Заявка отправлена!", reply_markup=start_kb)
     await state.clear()
 
