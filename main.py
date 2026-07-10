@@ -42,7 +42,8 @@ class ApplicationForm(StatesGroup):
 # --- ХЕНДЛЕРЫ ---
 @dp.message(Command("start"))
 async def start(msg: Message):
-    await msg.answer("Привет! Нажми кнопку ниже, чтобы начать оформление:", reply_markup=start_kb)
+    # При старте бот "забывает" старый контекст, если пользователь решил начать заново
+    await msg.answer("👋 Добро пожаловать!\n\nИспользуйте кнопку ниже, чтобы оформить новую заявку.", reply_markup=start_kb)
 
 @dp.message(F.text == "Начать заявку")
 async def start_form(msg: Message, state: FSMContext):
