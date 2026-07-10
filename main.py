@@ -36,8 +36,8 @@ start_kb = ReplyKeyboardMarkup(
 # --- СОСТОЯНИЯ ---
 class ApplicationForm(StatesGroup):
     company = State(); op_type = State(); city = State()
-    address = State(); date = State(); phone = State()
-    vehicle = State(); note = State()
+    address = State(); date = State(); phone = State() # Вернули date
+    vehicle = State(); note = State()    
 
 # --- ХЕНДЛЕРЫ ---
 @dp.message(Command("start"))
@@ -73,11 +73,11 @@ async def p_city(msg: Message, state: FSMContext):
 @dp.message(ApplicationForm.address)
 async def p_addr(msg: Message, state: FSMContext):
     await state.update_data(address=msg.text)
-    # Запускаем календарь БЕЗ ограничений (min_date=None)
+    # Вызываем календарь
     await msg.answer("5. Выберите дату:", reply_markup=await SimpleCalendar().start_calendar())
     await state.set_state(ApplicationForm.date)
 
-@dp.callback_query(SimpleCalendarCallback.filter())
+@dp.callback_query(SimpleCalendarCallback.filter(), ApplicationForm.date)
 async def p_date(cb: CallbackQuery, callback_data: dict, state: FSMContext):
     selected, date = await SimpleCalendar().process_selection(cb, callback_data)
     if selected:
@@ -117,15 +117,20 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     today = datetime.now().strftime("%d.%m.%Y")
     
-    # Записываем в таблицу
+    # Порядок столбцов: Дата заявки | Компания | Тип | Город | Адрес | Выбранная Дата | Телефон | Авто | Примечание
     sheet.append_row([
-        today, data.get('company'), data.get('op_type'), data.get('city'), 
-        data.get('address'), data.get('phone'), data.get('vehicle'), data.get('note')
+        today, 
+        data.get('company'), 
+        data.get('op_type'), 
+        data.get('city'), 
+        data.get('address'), 
+        data.get('date'),    # <--- Вот она, ваша выбранная дата!
+        data.get('phone'), 
+        data.get('vehicle'), 
+        data.get('note')
     ])
     
-    # Редактируем старое сообщение
     await cb.message.edit_text("✅ Заявка успешно отправлена!", reply_markup=None)
-    # Принудительно отправляем новое сообщение с кнопкой
     await cb.message.answer("Хотите оформить еще одну?", reply_markup=start_kb)
     await state.clear()
 
