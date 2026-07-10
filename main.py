@@ -94,17 +94,36 @@ async def p_vh(msg: Message, state: FSMContext):
 @dp.message(ApplicationForm.note)
 async def p_note(msg: Message, state: FSMContext):
     await state.update_data(note=msg.text)
-    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Отправить заявку", callback_data="send_req")]])
-    await msg.answer("Все верно?", reply_markup=kb)
+    # Кнопки "Да" и "Нет"
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Да", callback_data="send_req"),
+            InlineKeyboardButton(text="❌ Нет", callback_data="cancel_req")
+        ]
+    ])
+    await msg.answer("Все данные верны?", reply_markup=kb)
+
+@dp.callback_query(F.data == "cancel_req")
+async def cancel_data(cb: CallbackQuery, state: FSMContext):
+    await state.clear()
+    # Возвращаем пользователя в начало, удалив сообщение с кнопками
+    await cb.message.edit_text("❌ Заявка отменена. Вы можете начать новую, нажав кнопку внизу.", reply_markup=None)
+    await cb.message.answer("Выберите действие:", reply_markup=start_kb)
 
 @dp.callback_query(F.data == "send_req")
 async def send_data(cb: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     today = datetime.now().strftime("%d.%m.%Y")
-    sheet.append_row([today, data['company'], data['op_type'], data['city'], data['address'], data['phone'], data['vehicle'], data['note']])
     
-    # После успеха возвращаем клавиатуру с кнопкой
-    await cb.message.answer("✅ Заявка отправлена!", reply_markup=start_kb)
+    # Записываем в таблицу
+    sheet.append_row([
+        today, data.get('company'), data.get('op_type'), data.get('city'), 
+        data.get('address'), data.get('phone'), data.get('vehicle'), data.get('note')
+    ])
+    
+    # Редактируем сообщение, чтобы пользователь видел статус отправки
+    await cb.message.edit_text("✅ Заявка успешно отправлена!", reply_markup=None)
+    await cb.message.answer("Хотите оформить еще одну?", reply_markup=start_kb)
     await state.clear()
 
 # --- ЗАПУСК ---
