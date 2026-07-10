@@ -106,9 +106,10 @@ async def p_note(msg: Message, state: FSMContext):
 @dp.callback_query(F.data == "cancel_req")
 async def cancel_data(cb: CallbackQuery, state: FSMContext):
     await state.clear()
-    # Возвращаем пользователя в начало, удалив сообщение с кнопками
-    await cb.message.edit_text("❌ Заявка отменена. Вы можете начать новую, нажав кнопку внизу.", reply_markup=None)
-    await cb.message.answer("Выберите действие:", reply_markup=start_kb)
+    # Редактируем старое сообщение, убирая кнопки
+    await cb.message.edit_text("❌ Заявка отменена.", reply_markup=None)
+    # Принудительно отправляем новое сообщение с кнопкой "Начать заявку"
+    await cb.message.answer("Вы можете начать новую заявку:", reply_markup=start_kb)
 
 @dp.callback_query(F.data == "send_req")
 async def send_data(cb: CallbackQuery, state: FSMContext):
@@ -121,8 +122,9 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
         data.get('address'), data.get('phone'), data.get('vehicle'), data.get('note')
     ])
     
-    # Редактируем сообщение, чтобы пользователь видел статус отправки
+    # Редактируем старое сообщение
     await cb.message.edit_text("✅ Заявка успешно отправлена!", reply_markup=None)
+    # Принудительно отправляем новое сообщение с кнопкой
     await cb.message.answer("Хотите оформить еще одну?", reply_markup=start_kb)
     await state.clear()
 
