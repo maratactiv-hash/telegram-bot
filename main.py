@@ -23,7 +23,7 @@ sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-start_kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Начать заявку")]], resize_keyboard=True)
+start_kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Создать заявку")]], resize_keyboard=True)
 
 # --- СОСТОЯНИЯ ---
 class ApplicationForm(StatesGroup):
@@ -34,9 +34,9 @@ class ApplicationForm(StatesGroup):
 # --- ХЕНДЛЕРЫ ---
 @dp.message(Command("start"))
 async def start(msg: Message): 
-    await msg.answer("👋 Добро пожаловать!\n\nНажмите кнопку ниже, чтобы начать оформление новой заявки.", reply_markup=start_kb)
+    await msg.answer("👋 Добро пожаловать!\n\nНажмите кнопку ниже, чтобы создать оформление новой заявки.", reply_markup=start_kb)
 
-@dp.message(F.text == "Начать заявку")
+@dp.message(F.text == "Создать заявку")
 async def start_form(msg: Message, state: FSMContext):
     await state.clear()
     await msg.answer("1. Наименование компании:", reply_markup=ReplyKeyboardRemove())
