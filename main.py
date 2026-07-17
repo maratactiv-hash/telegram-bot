@@ -13,7 +13,6 @@ from aiohttp import web
 # --- НАСТРОЙКИ ---
 TOKEN = os.environ['TOKEN']
 SPREADSHEET_ID = os.environ['SPREADSHEET_ID']
-# Убедитесь, что в Render добавлена переменная RENDER_EXTERNAL_URL (например, https://ваш-бот.onrender.com)
 RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', '')
 
 creds_dict = json.loads(os.environ['GOOGLE_KEY_JSON'])
@@ -23,20 +22,20 @@ sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-start_kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Создать заявку")]], resize_keyboard=True)
 
-# --- СОСТОЯНИЯ ---
+# Кнопка всегда на экране
+start_kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Начать заявку")]], resize_keyboard=True, one_time_keyboard=False)
+
 class ApplicationForm(StatesGroup):
     company = State(); op_type = State(); city = State()
     address = State(); date = State(); phone = State()
     vehicle = State(); note = State()    
 
-# --- ХЕНДЛЕРЫ ---
 @dp.message(Command("start"))
 async def start(msg: Message): 
-    await msg.answer("👋 Добро пожаловать!\n\nНажмите кнопку ниже, чтобы создать оформление новой заявки.", reply_markup=start_kb)
+    await msg.answer("👋 Система готова. Нажмите кнопку ниже, чтобы создать заявку.", reply_markup=start_kb)
 
-@dp.message(F.text == "Создать заявку")
+@dp.message(F.text == "Начать заявку")
 async def start_form(msg: Message, state: FSMContext):
     await state.clear()
     await msg.answer("1. Наименование компании:", reply_markup=ReplyKeyboardRemove())
@@ -95,7 +94,7 @@ async def p_note(msg: Message, state: FSMContext):
 async def cancel_data(cb: CallbackQuery, state: FSMContext):
     await state.clear()
     await cb.message.edit_text("❌ Заявка отменена.", reply_markup=None)
-    await cb.message.answer("Вы можете начать новую заявку:", reply_markup=start_kb)
+    await cb.message.answer("Выберите действие:", reply_markup=start_kb)
 
 @dp.callback_query(F.data == "send_req")
 async def send_data(cb: CallbackQuery, state: FSMContext):
@@ -107,26 +106,18 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
         data.get('vehicle'), data.get('note')
     ])
     await cb.message.edit_text("✅ Заявка успешно отправлена!", reply_markup=None)
-    await cb.message.answer("Хотите оформить еще одну?", reply_markup=start_kb)
+    await cb.message.answer("Заявка принята в работу.", reply_markup=start_kb)
     await state.clear()
 
-# --- ЗАПУСК ---
 async def main():
     app = web.Application()
     webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
     webhook_requests_handler.register(app, path="/webhook")
     setup_application(app, dp, bot=bot)
-    
-    # Установка webhook
-    if RENDER_EXTERNAL_URL:
-        await bot.set_webhook(f"{RENDER_EXTERNAL_URL}/webhook")
-    
+    if RENDER_EXTERNAL_URL: await bot.set_webhook(f"{RENDER_EXTERNAL_URL}/webhook")
     port = int(os.environ.get("PORT", 10000))
-    runner = web.AppRunner(app)
-    await runner.setup()
+    runner = web.AppRunner(app); await runner.setup()
     await web.TCPSite(runner, '0.0.0.0', port).start()
-    
-    # Ожидание запросов без использования polling
     await asyncio.Event().wait()
 
 if __name__ == '__main__':
