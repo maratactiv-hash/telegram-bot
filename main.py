@@ -50,6 +50,7 @@ async def p_comp(msg: Message, state: FSMContext):
     ])
     await msg.answer("2. Тип операции:", reply_markup=kb); await state.set_state(ApplicationForm.op_type)
 
+@dpacallback = dp.callback_query(ApplicationForm.op_type)
 @dp.callback_query(ApplicationForm.op_type)
 async def p_type(cb: CallbackQuery, state: FSMContext):
     op = "Снятие навигационной пломбы" if cb.data == "op_remove" else "Наложение навигационной пломбы"
@@ -78,6 +79,10 @@ async def p_ph(msg: Message, state: FSMContext):
     await state.update_data(phone=msg.text); await msg.answer("7. Гос.номер авто:"); await state.set_state(ApplicationForm.vehicle)
 
 @dp.message(ApplicationForm.vehicle)
+async def p_vh(msg: Message, state: FsmContext = None): 
+    pass
+
+@dp.message(ApplicationForm.vehicle)
 async def p_vh(msg: Message, state: FSMContext): 
     await state.update_data(vehicle=msg.text); await msg.answer("8. Примечание:"); await state.set_state(ApplicationForm.note)
 
@@ -102,8 +107,13 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
     today = datetime.now().strftime("%d.%m.%Y")
     
     try:
-        # Порядок столбцов со сдвигом вправо (1-й столбец пустой для №):
-        sheet.append_row([
+        # Находим первую пустую строку по колонкам компании (3-й столбец) или типа операции (4-й столбец),
+        # либо используем вставку сразу под последней заполненной строкой.
+        # Метод len(sheet.get_all_values()) + 1 автоматически определяет следующую строку после последней с данными.
+        all_rows = sheet.get_all_values()
+        next_row = len(all_rows) + 1
+        
+        row_data = [
             "",                    # 1. № (оставляем пустым)
             today,                 # 2. Дата записи данных
             data.get('company'),   # 3. Наименование компании
@@ -114,7 +124,11 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
             data.get('phone'),     # 8. Контактный номер
             data.get('vehicle'),   # 9. Авто
             data.get('note')       # 10. Примечание
-        ])
+        ]
+        
+        # Вставляем данные точно на строку `next_row`, чтобы новые записи шли строго сверху вниз сразу после существующих
+        sheet.insert_row(row_data, index=next_row)
+        
         await cb.message.edit_text("✅ Заявка успешно отправлена!", reply_markup=None)
         await cb.message.answer("Заявка принята в работу.", reply_markup=start_kb)
     except Exception as e:
