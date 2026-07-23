@@ -50,7 +50,6 @@ async def p_comp(msg: Message, state: FSMContext):
     ])
     await msg.answer("2. Тип операции:", reply_markup=kb); await state.set_state(ApplicationForm.op_type)
 
-@dpacallback = dp.callback_query(ApplicationForm.op_type)
 @dp.callback_query(ApplicationForm.op_type)
 async def p_type(cb: CallbackQuery, state: FSMContext):
     op = "Снятие навигационной пломбы" if cb.data == "op_remove" else "Наложение навигационной пломбы"
@@ -79,10 +78,6 @@ async def p_ph(msg: Message, state: FSMContext):
     await state.update_data(phone=msg.text); await msg.answer("7. Гос.номер авто:"); await state.set_state(ApplicationForm.vehicle)
 
 @dp.message(ApplicationForm.vehicle)
-async def p_vh(msg: Message, state: FsmContext = None): 
-    pass
-
-@dp.message(ApplicationForm.vehicle)
 async def p_vh(msg: Message, state: FSMContext): 
     await state.update_data(vehicle=msg.text); await msg.answer("8. Примечание:"); await state.set_state(ApplicationForm.note)
 
@@ -107,9 +102,6 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
     today = datetime.now().strftime("%d.%m.%Y")
     
     try:
-        # Находим первую пустую строку по колонкам компании (3-й столбец) или типа операции (4-й столбец),
-        # либо используем вставку сразу под последней заполненной строкой.
-        # Метод len(sheet.get_all_values()) + 1 автоматически определяет следующую строку после последней с данными.
         all_rows = sheet.get_all_values()
         next_row = len(all_rows) + 1
         
@@ -118,7 +110,7 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
             today,                 # 2. Дата записи данных
             data.get('company'),   # 3. Наименование компании
             data.get('op_type'),   # 4. Тип операции
-            data.get('city'),      # 5. Область
+            data.get('city'),      # 5. Город
             data.get('address'),   # 6. Адрес
             data.get('date'),      # 7. Дата (выбранная)
             data.get('phone'),     # 8. Контактный номер
@@ -126,7 +118,6 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
             data.get('note')       # 10. Примечание
         ]
         
-        # Вставляем данные точно на строку `next_row`, чтобы новые записи шли строго сверху вниз сразу после существующих
         sheet.insert_row(row_data, index=next_row)
         
         await cb.message.edit_text("✅ Заявка успешно отправлена!", reply_markup=None)
