@@ -101,22 +101,26 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     today = datetime.now().strftime("%d.%m.%Y")
     
-    # Порядок столбцов со сдвигом вправо (1-й столбец пустой для №):
-    sheet.append_row([
-        "",                    # 1. № (оставляем пустым)
-        today,                 # 2. Дата записи данных
-        data.get('company'),   # 3. Наименование компании
-        data.get('op_type'),   # 4. Тип операции
-        data.get('city'),      # 5. Область
-        data.get('address'),   # 6. Адрес
-        data.get('date'),      # 7. Дата (выбранная)
-        data.get('phone'),     # 8. Контактный номер
-        data.get('vehicle'),   # 9. Авто
-        data.get('note')       # 10. Примечание
-    ])
+    try:
+        # Порядок столбцов со сдвигом вправо (1-й столбец пустой для №):
+        sheet.append_row([
+            "",                    # 1. № (оставляем пустым)
+            today,                 # 2. Дата записи данных
+            data.get('company'),   # 3. Наименование компании
+            data.get('op_type'),   # 4. Тип операции
+            data.get('city'),      # 5. Область
+            data.get('address'),   # 6. Адрес
+            data.get('date'),      # 7. Дата (выбранная)
+            data.get('phone'),     # 8. Контактный номер
+            data.get('vehicle'),   # 9. Авто
+            data.get('note')       # 10. Примечание
+        ])
+        await cb.message.edit_text("✅ Заявка успешно отправлена!", reply_markup=None)
+        await cb.message.answer("Заявка принята в работу.", reply_markup=start_kb)
+    except Exception as e:
+        await cb.message.edit_text(f"❌ Ошибка записи в таблицу:\n<code>{e}</code>", parse_mode="HTML")
+        await cb.message.answer("Попробуйте снова.", reply_markup=start_kb)
     
-    await cb.message.edit_text("✅ Заявка успешно отправлена!", reply_markup=None)
-    await cb.message.answer("Заявка принята в работу.", reply_markup=start_kb)
     await state.clear()
 
 async def main():
