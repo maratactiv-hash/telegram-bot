@@ -102,23 +102,25 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
     today = datetime.now().strftime("%d.%m.%Y")
     
     try:
-        all_rows = sheet.get_all_values()
-        next_row = len(all_rows) + 1
+        # 1. Находим последнюю заполненную строку строго по 3-му столбцу (Наименование компании)
+        company_col = sheet.col_values(3)
+        target_row = len(company_col) + 1
         
+        # 2. Собираем данные со 2-го столбца (B) по 10-й столбец (J)
         row_data = [
-            "",                    # 1. № (оставляем пустым)
-            today,                 # 2. Дата записи данных
-            data.get('company'),   # 3. Наименование компании
-            data.get('op_type'),   # 4. Тип операции
-            data.get('city'),      # 5. Город
-            data.get('address'),   # 6. Адрес
-            data.get('date'),      # 7. Дата (выбранная)
-            data.get('phone'),     # 8. Контактный номер
-            data.get('vehicle'),   # 9. Авто
-            data.get('note')       # 10. Примечание
+            today,                 # Столбец B (2. Дата записи)
+            data.get('company'),   # Столбец C (3. Компания)
+            data.get('op_type'),   # Столбец D (4. Тип операции)
+            data.get('city'),      # Столбец E (5. Область)
+            data.get('address'),   # Столбец F (6. Адрес)
+            data.get('date'),      # Столбец G (7. Дата)
+            data.get('phone'),     # Столбец H (8. Контактный номер)
+            data.get('vehicle'),   # Столбец I (9. Авто)
+            data.get('note')       # Столбец J (10. Примечание)
         ]
         
-        sheet.insert_row(row_data, index=next_row)
+        # 3. Обновляем ячейки начиная со столбца B найденной строки
+        sheet.update(f"B{target_row}", [row_data])
         
         await cb.message.edit_text("✅ Заявка успешно отправлена!", reply_markup=None)
         await cb.message.answer("Заявка принята в работу.", reply_markup=start_kb)
