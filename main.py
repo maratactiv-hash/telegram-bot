@@ -102,11 +102,10 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
     today = datetime.now().strftime("%d.%m.%Y")
     
     try:
-        # 1. Находим последнюю заполненную строку строго по 3-му столбцу (Наименование компании)
+        # Находим последнюю заполненную строку строго по 3-му столбцу (Наименование компании)
         company_col = sheet.col_values(3)
         target_row = len(company_col) + 1
         
-        # 2. Собираем данные со 2-го столбца (B) по 10-й столбец (J)
         row_data = [
             today,                 # Столбец B (2. Дата записи)
             data.get('company'),   # Столбец C (3. Компания)
@@ -119,7 +118,7 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
             data.get('note')       # Столбец J (10. Примечание)
         ]
         
-        # 3. Обновляем ячейки начиная со столбца B найденной строки
+        # Обновляем ячейки начиная со столбца B на целевой строке
         sheet.update(f"B{target_row}", [row_data])
         
         await cb.message.edit_text("✅ Заявка успешно отправлена!", reply_markup=None)
@@ -130,10 +129,20 @@ async def send_data(cb: CallbackQuery, state: FSMContext):
     
     await state.clear()
 
+# Умный обработчик для /webhook (принимает GET для пингов и POST для Telegram)
+async def handle_webhook(request: web.Request):
+    if request.method == "GET":
+        return web.Response(text="OK")
+    
+    handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    return await handler(request)
+
 async def main():
     app = web.Application()
-    webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
-    webhook_requests_handler.register(app, path="/webhook")
+    
+    # Регистрируем универсальный обработчик на /webhook
+    app.router.add_route("*", "/webhook", handle_webhook)
+    
     setup_application(app, dp, bot=bot)
     if RENDER_EXTERNAL_URL: await bot.set_webhook(f"{RENDER_EXTERNAL_URL}/webhook")
     port = int(os.environ.get("PORT", 10000))
