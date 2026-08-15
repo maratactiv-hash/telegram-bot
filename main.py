@@ -13,7 +13,7 @@ from aiohttp import web
 # --- НАСТРОЙКИ ---
 TOKEN = os.environ['TOKEN']
 SPREADSHEET_ID = os.environ['SPREADSHEET_ID']
-RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', '')
+RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', '') platite
 
 creds_dict = json.loads(os.environ['GOOGLE_KEY_JSON'])
 creds = Credentials.from_service_account_info(creds_dict, scopes=['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'])
