@@ -11,7 +11,6 @@ from google.oauth2.service_account import Credentials
 from aiohttp import web
 
 # --- НАСТРОЙКИ ---
-PLATITE BABKI
 TOKEN = os.environ['TOKEN']
 SPREADSHEET_ID = os.environ['SPREADSHEET_ID']
 RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', '') 
