@@ -108,4 +108,82 @@ async def p_date(cb: CallbackQuery, callback_data: dict, state: FSMContext):
             await cb.answer("❌ Нельзя выбрать прошедшую дату или сегодняшний день!", show_alert=True)
             return
 
-        await state.update_data(date=date.
+        await state.update_data(date=date.strftime("%d.%m.%Y"))
+        await cb.message.answer("6. Номер телефона:")
+        await state.set_state(ApplicationForm.phone)
+
+@dp.message(ApplicationForm.phone)
+async def p_ph(msg: Message, state: FSMContext): 
+    await state.update_data(phone=msg.text)
+    await msg.answer("7. Гос.номер авто:")
+    await state.set_state(ApplicationForm.vehicle)
+
+@dp.message(ApplicationForm.vehicle)
+async def p_vh(msg: Message, state: FSMContext): 
+    await state.update_data(vehicle=msg.text)
+    await msg.answer("8. Примечание:")
+    await state.set_state(ApplicationForm.note)
+
+@dp.message(ApplicationForm.note)
+async def p_note(msg: Message, state: FSMContext):
+    await state.update_data(note=msg.text)
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="✅ Да", callback_data="send_req"),
+        InlineKeyboardButton(text="❌ Нет", callback_data="cancel_req")
+    ]])
+    await msg.answer("Все данные верны?", reply_markup=kb)
+
+@dp.callback_query(F.data == "cancel_req")
+async def cancel_data(cb: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await cb.message.edit_text("❌ Заявка отменена.", reply_markup=None)
+    await cb.message.answer("Выберите действие:", reply_markup=start_kb)
+
+@dp.callback_query(F.data == "send_req")
+async def send_data(cb: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    today = datetime.now().strftime("%d.%m.%Y")
+
+    try:
+        company_col = sheet.col_values(3)
+        target_row = len(company_col) + 1
+
+        row_data = [
+            today, data.get('company'), data.get('op_type'), 
+            data.get('city'), data.get('address'), data.get('date'), 
+            data.get('phone'), data.get('vehicle'), data.get('note')
+        ]
+
+        sheet.update(f"B{target_row}", [row_data])
+        await cb.message.edit_text("✅ Заявка успешно отправлена!", reply_markup=None)
+        await cb.message.answer("Заявка принята в работу.", reply_markup=start_kb)
+    except Exception as e:
+        await cb.message.edit_text(f"❌ Ошибка записи в таблицу:\n<code>{e}</code>", parse_mode="HTML")
+        await cb.message.answer("Попробуйте снова.", reply_markup=start_kb)
+
+    await state.clear()
+
+async def handle_webhook(request: web.Request):
+    if request.method == "GET":
+        return web.Response(text="OK")
+    handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    return await handler(request)
+
+async def main():
+    app = web.Application()
+    app.router.add_route("*", "/webhook", handle_webhook)
+    setup_application(app, dp, bot=bot)
+    
+    if RENDER_EXTERNAL_URL:
+        webhook_url = f"{RENDER_EXTERNAL_URL.rstrip('/')}/webhook"
+        await bot.set_webhook(webhook_url)
+        
+    port = int(os.environ.get("PORT", 10000))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    await asyncio.Event().wait()
+
+if __name__ == '__main__':
+    asyncio.run(main())
