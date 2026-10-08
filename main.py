@@ -99,10 +99,14 @@ async def p_addr(msg: Message, state: FSMContext):
     await state.set_state(ApplicationForm.date)
 
 @dp.callback_query(SimpleCalendarCallback.filter(), ApplicationForm.date)
-async def p_date(cb: CallbackQuery, callback_data: dict, state: FSMContext):
-    selected, date = await SimpleCalendar().process_selection(cb, callback_data)
+async def p_date(cb: CallbackQuery, callback_data: SimpleCalendarCallback, state: FSMContext):
+    # Используем стандартный метод процессинга aiogram-calendar
+    calendar = SimpleCalendar()
+    calendar.set_min_date(datetime.now() + timedelta(days=1))
+    
+    selected, date = await calendar.process_selection(cb, callback_data)
+    
     if selected:
-        # Дополнительная проверка на бэкенде
         tomorrow_date = datetime.now().date() + timedelta(days=1)
         if date.date() < tomorrow_date:
             await cb.answer("❌ Нельзя выбрать прошедшую дату или сегодняшний день!", show_alert=True)
