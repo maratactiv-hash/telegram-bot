@@ -94,20 +94,28 @@ async def p_city(msg: Message, state: FSMContext):
 async def p_addr(msg: Message, state: FSMContext):
     await state.update_data(address=msg.text)
     
-    # Запускаем календарь стандартным методом
+    # Создаем календарь и устанавливаем минимальную дату (завтра)
+    calendar = SimpleCalendar()
+    tomorrow = datetime.now() + timedelta(days=1)
+    calendar.set_min_date(tomorrow)
+    
     await msg.answer(
         "5. Выберите дату (доступно с завтрашнего дня):", 
-        reply_markup=await SimpleCalendar().start_calendar()
+        reply_markup=await calendar.start_calendar()
     )
     await state.set_state(ApplicationForm.date)
 
 @dp.callback_query(SimpleCalendarCallback.filter(), ApplicationForm.date)
 async def p_date(cb: CallbackQuery, callback_data: SimpleCalendarCallback, state: FSMContext):
-    selected, date = await SimpleCalendar().process_selection(cb, callback_data)
+    calendar = SimpleCalendar()
+    tomorrow = datetime.now() + timedelta(days=1)
+    calendar.set_min_date(tomorrow)
+    
+    selected, date = await calendar.process_selection(cb, callback_data)
     
     if selected:
         tomorrow_date = datetime.now().date() + timedelta(days=1)
-        # Если выбрали сегодняшний или прошедший день — показываем предупреждение, но календарь не ломаем
+        # Дополнительная проверка на бэкенде (на случай старых кэшированных инлайн-кнопок)
         if date.date() < tomorrow_date:
             await cb.answer("❌ Выберите дату начиная с завтрашнего дня!", show_alert=True)
             return
