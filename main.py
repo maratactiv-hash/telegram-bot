@@ -94,36 +94,28 @@ async def p_city(msg: Message, state: FSMContext):
 async def p_addr(msg: Message, state: FSMContext):
     await state.update_data(address=msg.text)
     
-    # Настраиваем календарь с ограничением минимальной даты (завтра)
-    calendar = SimpleCalendar()
-    tomorrow = datetime.now() + timedelta(days=1)
-    calendar.set_min_date(tomorrow)
-    
-    now = datetime.now()
+    # Запускаем календарь стандартным методом
     await msg.answer(
         "5. Выберите дату (доступно с завтрашнего дня):", 
-        reply_markup=await calendar.start_calendar(year=now.year, month=now.month)
+        reply_markup=await SimpleCalendar().start_calendar()
     )
     await state.set_state(ApplicationForm.date)
 
 @dp.callback_query(SimpleCalendarCallback.filter(), ApplicationForm.date)
 async def p_date(cb: CallbackQuery, callback_data: SimpleCalendarCallback, state: FSMContext):
-    calendar = SimpleCalendar()
-    tomorrow = datetime.now() + timedelta(days=1)
-    calendar.set_min_date(tomorrow)
-    
-    selected, date = await calendar.process_selection(cb, callback_data)
+    selected, date = await SimpleCalendar().process_selection(cb, callback_data)
     
     if selected:
         tomorrow_date = datetime.now().date() + timedelta(days=1)
-        # Если клиент выбрал запрещенную дату, показываем всплывающее окно, но НЕ закрываем календарь
+        # Если выбрали сегодняшний или прошедший день — показываем предупреждение, но календарь не ломаем
         if date.date() < tomorrow_date:
             await cb.answer("❌ Выберите дату начиная с завтрашнего дня!", show_alert=True)
             return
 
-        # Если дата корректная — сохраняем и переходим к следующему шагу
+        # Если дата корректная — сохраняем и переходим дальше
         await state.update_data(date=date.strftime("%d.%m.%Y"))
-        await cb.message.answer(f"Выбрана дата: {date.strftime('%d.%m.%Y')}\n\n6. Номер телефона:", reply_markup=start_kb)
+        await cb.message.edit_text(f"Выбрана дата: {date.strftime('%d.%m.%Y')}")
+        await cb.message.answer("6. Номер телефона:", reply_markup=start_kb)
         await state.set_state(ApplicationForm.phone)
 
 @dp.message(ApplicationForm.phone)
