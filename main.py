@@ -36,10 +36,11 @@ sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
+# Постоянная клавиатура с кнопкой сброса/старта
 start_kb = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="Начать заявку")]], 
     resize_keyboard=True, 
-    one_time_keyboard=False
+    is_persistent=True
 )
 
 class ApplicationForm(StatesGroup):
@@ -52,14 +53,17 @@ class ApplicationForm(StatesGroup):
     vehicle = State()
     note = State()    
 
+# Обработчик команды /start и кнопки сброса из любого состояния
 @dp.message(Command("start"))
-async def start(msg: Message): 
-    await msg.answer("👋 Система готова. Нажмите кнопку ниже, чтобы создать заявку.", reply_markup=start_kb)
-
 @dp.message(F.text == "Начать заявку")
-async def start_form(msg: Message, state: FSMContext):
+async def cmd_start_or_reset(msg: Message, state: FSMContext): 
     await state.clear()
-    await msg.answer("1. Наименование компании:", reply_markup=ReplyKeyboardRemove())
+    await msg.answer(
+        "👋 Система готова. Нажмите кнопку ниже, чтобы создать заявку (или сбросить текущую).", 
+        reply_markup=start_kb
+    )
+    # Сразу переводим в первый шаг заполнения по нажатию кнопки
+    await msg.answer("1. Наименование компании:", reply_markup=start_kb)
     await state.set_state(ApplicationForm.company)
 
 @dp.message(ApplicationForm.company)
@@ -76,13 +80,13 @@ async def p_comp(msg: Message, state: FSMContext):
 async def p_type(cb: CallbackQuery, state: FSMContext):
     op = "Снятие навигационной пломбы" if cb.data == "op_remove" else "Наложение навигационной пломбы"
     await state.update_data(op_type=op)
-    await cb.message.answer("3. Область:")
+    await cb.message.answer("3. Область:", reply_markup=start_kb)
     await state.set_state(ApplicationForm.city)
 
 @dp.message(ApplicationForm.city)
 async def p_city(msg: Message, state: FSMContext): 
     await state.update_data(city=msg.text)
-    await msg.answer("4. Точный адрес:")
+    await msg.answer("4. Точный адрес:", reply_markup=start_kb)
     await state.set_state(ApplicationForm.address)
 
 @dp.message(ApplicationForm.address)
@@ -100,7 +104,6 @@ async def p_addr(msg: Message, state: FSMContext):
 
 @dp.callback_query(SimpleCalendarCallback.filter(), ApplicationForm.date)
 async def p_date(cb: CallbackQuery, callback_data: SimpleCalendarCallback, state: FSMContext):
-    # Используем стандартный метод процессинга aiogram-calendar
     calendar = SimpleCalendar()
     calendar.set_min_date(datetime.now() + timedelta(days=1))
     
@@ -113,19 +116,19 @@ async def p_date(cb: CallbackQuery, callback_data: SimpleCalendarCallback, state
             return
 
         await state.update_data(date=date.strftime("%d.%m.%Y"))
-        await cb.message.answer("6. Номер телефона:")
+        await cb.message.answer("6. Номер телефона:", reply_markup=start_kb)
         await state.set_state(ApplicationForm.phone)
 
 @dp.message(ApplicationForm.phone)
 async def p_ph(msg: Message, state: FSMContext): 
     await state.update_data(phone=msg.text)
-    await msg.answer("7. Гос.номер авто:")
+    await msg.answer("7. Гос.номер авто:", reply_markup=start_kb)
     await state.set_state(ApplicationForm.vehicle)
 
 @dp.message(ApplicationForm.vehicle)
 async def p_vh(msg: Message, state: FSMContext): 
     await state.update_data(vehicle=msg.text)
-    await msg.answer("8. Примечание:")
+    await msg.answer("8. Примечание:", reply_markup=start_kb)
     await state.set_state(ApplicationForm.note)
 
 @dp.message(ApplicationForm.note)
