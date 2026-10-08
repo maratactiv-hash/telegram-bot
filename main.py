@@ -8,6 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback
 from google.oauth2.service_account import Credentials
 import gspread
 from aiohttp import web
@@ -35,7 +36,7 @@ sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Постоянная клавиатура с кнопкой сброса/старта
+# Постоянная клавиатура с кнопкой сброса/старта (не исчезает)
 start_kb = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="Начать заявку")]], 
     resize_keyboard=True, 
@@ -93,51 +94,31 @@ async def p_city(msg: Message, state: FSMContext):
 async def p_addr(msg: Message, state: FSMContext):
     await state.update_data(address=msg.text)
     
-    # Предлагаем быстрые кнопки выбора даты (Завтра / Послезавтра) или ручной ввод
-    tomorrow = (datetime.now() + timedelta(days=1)).strftime("%d.%m.%Y")
-    day_after = (datetime.now() + timedelta(days=2)).strftime("%d.%m.%Y")
-    
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text=f"📅 Завтра ({tomorrow})", callback_data=f"date_{tomorrow}"),
-            InlineKeyboardButton(text=f"📅 Послезавтра ({day_after})", callback_data=f"date_{day_after}")
-        ]
-    ])
-    
+    # Запускаем календарь через метод start_calendar без громоздких настроек, которые вызывают зависания
+    now = datetime.now()
     await msg.answer(
-        "5. Выберите дату (нажмите кнопку или введите в формате ДД.ММ.ГГГГ, начиная с завтрашнего дня):", 
-        reply_markup=kb
+        "5. Выберите дату (доступно начиная с завтрашнего дня):", 
+        reply_markup=await SimpleCalendar().start_calendar(year=now.year, month=now.month)
     )
     await state.set_state(ApplicationForm.date)
 
-# Обработка выбора даты через инлайн-кнопки
-@dp.callback_query(F.data.startswith("date_"), ApplicationForm.date)
-async def p_date_callback(cb: CallbackQuery, state: FSMContext):
-    selected_date_str = cb.data.split("_")[1]
+@dp.callback_query(SimpleCalendarCallback.filter(), ApplicationForm.date)
+async def p_date(cb: CallbackQuery, callback_data: SimpleCalendarCallback, state: FSMContext):
+    selected, date = await SimpleCalendar().process_selection(cb, callback_data)
     
-    await state.update_data(date=selected_date_str)
-    await cb.message.edit_text(f"Выбрана дата: {selected_date_str}")
-    await cb.message.answer("6. Номер телефона:", reply_markup=start_kb)
-    await state.set_state(ApplicationForm.phone)
-
-# Обработка ввода даты текстом (на случай ручного ввода)
-@dp.message(ApplicationForm.date)
-async def p_date_text(msg: Message, state: FSMContext):
-    date_text = msg.text.strip()
-    
-    try:
-        parsed_date = datetime.strptime(date_text, "%d.%m.%Y")
+    if selected:
         tomorrow_date = datetime.now().date() + timedelta(days=1)
         
-        if parsed_date.date() < tomorrow_date:
-            await msg.answer("❌ Нельзя выбрать прошедшую дату или сегодняшний день! Выберите дату начиная с завтрашнего дня:")
+        # Строгая проверка: если выбрана сегодняшняя или прошедшая дата — предупреждаем, календарь оставляем открытым
+        if date.date() < tomorrow_date:
+            await cb.answer("❌ Нельзя выбрать прошедшую дату или сегодняшний день! Выберите дату начиная с завтрашнего дня.", show_alert=True)
             return
-            
-        await state.update_data(date=date_text)
-        await msg.answer("6. Номер телефона:", reply_markup=start_kb)
+
+        # Если дата корректная — сохраняем и переходим к следующему шагу
+        await state.update_data(date=date.strftime("%d.%m.%Y"))
+        await cb.message.edit_text(f"Выбрана дата: {date.strftime('%d.%m.%Y')}")
+        await cb.message.answer("6. Номер телефона:", reply_markup=start_kb)
         await state.set_state(ApplicationForm.phone)
-    except ValueError:
-        await msg.answer("❌ Неверный формат даты. Введите дату в формате ДД.ММ.ГГГГ (например, 09.10.2026):")
 
 @dp.message(ApplicationForm.phone)
 async def p_ph(msg: Message, state: FSMContext): 
