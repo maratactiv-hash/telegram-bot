@@ -1,5 +1,5 @@
 aiogram==3.18.0
-aiogram-calendar==0.7.2
+aiogram-calendar==0.6.0
 gspread==6.1.2
 google-auth==2.29.0
 aiohttp==3.9.5
