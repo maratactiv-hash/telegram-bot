@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback
 from google.oauth2.service_account import Credentials
@@ -53,16 +53,18 @@ class ApplicationForm(StatesGroup):
     vehicle = State()
     note = State()    
 
-# Обработчик команды /start и кнопки сброса из любого состояния
+# Отдельный обработчик для команды /start и кнопки сброса
 @dp.message(Command("start"))
-@dp.message(F.text == "Начать заявку")
-async def cmd_start_or_reset(msg: Message, state: FSMContext): 
+async def cmd_start(msg: Message, state: FSMContext): 
     await state.clear()
     await msg.answer(
-        "👋 Система готова. Нажмите кнопку ниже, чтобы создать заявку (или сбросить текущую).", 
+        "👋 Система готова. Нажмите кнопку ниже, чтобы создать заявку.", 
         reply_markup=start_kb
     )
-    # Сразу переводим в первый шаг заполнения по нажатию кнопки
+
+@dp.message(F.text == "Начать заявку")
+async def start_form_btn(msg: Message, state: FSMContext):
+    await state.clear()
     await msg.answer("1. Наименование компании:", reply_markup=start_kb)
     await state.set_state(ApplicationForm.company)
 
